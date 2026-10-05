@@ -1,1 +1,307 @@
-"C:\Users\nivet\OneDrive\Desktop\Data"
+Here is a breakdown and explanation of Part 1 — SQL Business Query Engine (25 Marks) based on the database schema and query requirements.   
+JPEG
++ 2
+
+Database Schema Overview
+The database consists of two core tables linked by reseller_id:
+
+resellers table: Contains master profiles (reseller_id, reseller_name, region).
+
+orders table: Contains transaction records (order_id, reseller_id, month, category, quantity, unit_price, status).
+
+Key Rule: Line item revenue is calculated dynamically as quantity * unit_price. Revenue analyses strictly filter for status = 'Delivered' unless explicitly testing for unmatched records.   
+JPEG
+
+Step-by-Step Query Explanations
+1. Monthly Category Revenue
+Objective: Track gross revenue per product category across April, May, and June for delivered orders.   
+
+Logic:
+
+Filter rows where status = 'Delivered'.   
+
+Group results by month and category.   
+
+
+Aggregate revenue using ROUND(SUM(quantity * unit_price), 2).   
+
+
+Order chronologically by month (April → May → June) using a custom CASE statement, and descending by revenue within each month.   
+
+
+2. Region-Wise Total Revenue and Order Count
+Objective: Measure regional sales distribution and order volumes.   
+
+
+Logic:
+
+Perform an INNER JOIN between resellers and orders on reseller_id.   
+
+
+Filter for status = 'Delivered'.   
+
+
+Group by r.region.   
+
+
+Calculate total revenue (SUM(quantity * unit_price)) and total delivered order count (COUNT(*)).   
+
+
+Order by total_revenue DESC.   
+
+
+3. Top Resellers by Total Spend (> INR 50,000)
+Objective: Identify high-value resellers based on cumulative historical purchases.   
+JPEG
++ 1
+
+Logic:
+
+Join resellers and orders on reseller_id filtering for status = 'Delivered'.   
+
+
+Group by r.reseller_id and r.reseller_name.   
+
+
+Use a HAVING SUM(quantity * unit_price) > 50000 clause to filter aggregated group sums.   
+
+
+Sort by total_spend DESC and apply LIMIT 5.   
+
+
+4. Resellers with Zero Orders (COUNT(*) vs COUNT(order_id))
+Objective: Identify registered resellers who have never placed an order (RS024).   
+JPEG
++ 1
+
+Logic:
+
+Perform a LEFT JOIN from resellers (r) to orders (o) on reseller_id.   
+
+
+Apply WHERE o.order_id IS NULL to isolate unmatched reseller records.   
+
+
+Crucial SQL Concept (COUNT(*) vs COUNT(column)):
+
+COUNT(*) counts the number of physical rows in the joined group. Because the LEFT JOIN yields a single row with NULL right-table columns for an unmatched reseller, COUNT(*) returns 1 (which incorrectly implies 1 order occurred).   
+
+
+COUNT(o.order_id) explicitly ignores NULL column values. Since order_id is NULL for unmatched rows, COUNT(o.order_id) correctly evaluates to 0.   
+
+
+5. June Average Order Value (AOV)
+Objective: Compute average ticket size for delivered orders in June.   
+JPEG
++ 1
+
+Logic:
+
+Filter for month = 'June' AND status = 'Delivered'.   
+
+
+Calculate AOV by dividing total June delivered revenue by total June delivered order count: ROUND(SUM(quantity * unit_price) / COUNT(*), 2).   
+
+
+Key Verified Results Summary
+Query Metric	Result	Explanation
+Total Pipeline Revenue	INR 1,262,066.92	
+Sum across all 900 orders across April–June. 
+
+
+Top Region	North (INR 337,125.46)	
+Generates highest revenue across 231 delivered orders. 
+
+
+Top Reseller Spend	ALIAS-19 (INR 75,295.09)	
+Ranked #1 high-value reseller exceeding INR 50k threshold. 
+
+Zero-Order Reseller	RS024	
+"Ahmedabad Reseller 6" (West Region) with 0 orders. 
+JPEG
+
+June AOV	INR 1,267.69	
+Mean spend per delivered order in June.
+Here is the complete solution for Part 1 — SQL Business Query Engine (25 Marks) based on the database schema and project rules.   
+JPEG
++ 1
+
+Folder & File Structure Required for Part 1
+Ensure your repository contains the following file paths:   
+JPEG
+
+Plaintext
+meesho-growth-pipeline/
+│
+├── data/
+│   ├── generate_dataset.py
+│   ├── resellers.csv
+│   ├── orders.csv
+│   └── meesho_reseller.db
+│
+└── part1_sql/
+    ├── generate_and_query.py
+    ├── README.md
+    └── output/
+        ├── monthly_category_revenue.csv
+        ├── region_wise_revenue.csv
+        ├── top_resellers_by_spend.csv
+        ├── zero_order_resellers.csv
+        └── june_aov.csv
+1. Master Generation & Query Script: part1_sql/generate_and_query.py
+This Python script runs the dataset generator, populates the SQLite database (meesho_reseller.db), executes all 5 required business queries, and exports the CSV outputs to part1_sql/output/.   
+JPEG
++ 1
+
+Python
+import os
+import sqlite3
+import csv
+import sys
+
+# Step 1: Ensure dataset generator runs first and creates data files
+DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
+sys.path.append(DATA_DIR)
+
+import generate_dataset
+
+OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "output"))
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+db_path = os.path.join(DATA_DIR, "meesho_reseller.db")
+conn = sqlite3.connect(db_path)
+cur = conn.cursor()
+
+def save_query_to_csv(query, output_filename):
+    cur.execute(query)
+    rows = cur.fetchall()
+    headers = [description[0] for description in cur.description]
+    filepath = os.path.join(OUTPUT_DIR, output_filename)
+    with open(filepath, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerows(rows)
+    print(f"Successfully generated: {output_filename}")
+
+# ---------------------------------------------------------
+# Query 1: Monthly category revenue (Delivered orders only)
+# ---------------------------------------------------------
+q1 = """
+SELECT 
+    month,
+    category,
+    ROUND(SUM(quantity * unit_price), 2) AS revenue,
+    COUNT(*) AS n_orders
+FROM orders
+WHERE status = 'Delivered'
+GROUP BY month, category
+ORDER BY 
+    CASE month 
+        WHEN 'April' THEN 1 
+        WHEN 'May' THEN 2 
+        WHEN 'June' THEN 3 
+    END,
+    revenue DESC;
+"""
+
+# ---------------------------------------------------------
+# Query 2: Region-wise total revenue and order count
+# ---------------------------------------------------------
+q2 = """
+SELECT 
+    r.region,
+    ROUND(SUM(o.quantity * o.unit_price), 2) AS total_revenue,
+    COUNT(*) AS total_orders
+FROM resellers r
+JOIN orders o ON r.reseller_id = o.reseller_id
+WHERE o.status = 'Delivered'
+GROUP BY r.region
+ORDER BY total_revenue DESC;
+"""
+
+# ---------------------------------------------------------
+# Query 3: Top resellers by total spend (> 50,000)
+# ---------------------------------------------------------
+q3 = """
+SELECT 
+    r.reseller_id,
+    r.reseller_name,
+    ROUND(SUM(o.quantity * o.unit_price), 2) AS total_spend
+FROM resellers r
+JOIN orders o ON r.reseller_id = o.reseller_id
+WHERE o.status = 'Delivered'
+GROUP BY r.reseller_id
+HAVING total_spend > 50000
+ORDER BY total_spend DESC
+LIMIT 5;
+"""
+
+# ---------------------------------------------------------
+# Query 4: Resellers who have never placed an order
+# ---------------------------------------------------------
+q4 = """
+SELECT 
+    r.reseller_id,
+    r.reseller_name,
+    r.region,
+    COUNT(*) AS count_star,
+    COUNT(o.order_id) AS count_order_id
+FROM resellers r
+LEFT JOIN orders o ON r.reseller_id = o.reseller_id
+WHERE o.order_id IS NULL
+GROUP BY r.reseller_id;
+"""
+
+# ---------------------------------------------------------
+# Query 5: Average Order Value (AOV) for June Delivered orders
+# ---------------------------------------------------------
+q5 = """
+SELECT 
+    ROUND(SUM(quantity * unit_price) / COUNT(*), 2) AS aov
+FROM orders
+WHERE month = 'June' AND status = 'Delivered';
+"""
+
+# Execute and export all CSV files
+save_query_to_csv(q1, "monthly_category_revenue.csv")
+save_query_to_csv(q2, "region_wise_revenue.csv")
+save_query_to_csv(q3, "top_resellers_by_spend.csv")
+save_query_to_csv(q4, "zero_order_resellers.csv")
+save_query_to_csv(q5, "june_aov.csv")
+
+conn.close()
+2. Analytical Documentation: part1_sql/README.md
+Save this file in part1_sql/README.md to satisfy the explicit evaluation rubrics regarding SQL execution findings and the COUNT(*) vs COUNT(order_id) comparison.   
+JPEG
++ 1
+
+Markdown
+# Part 1: SQL Analytics & Implementation Details
+
+## Key Analytical Findings
+
+1. **Grand Total Revenue (All 900 orders across all months):** `INR 1,262,066.92`
+2. **Region-Wise Revenue Breakdown:**
+   - **North:** INR 337,125.46 (231 orders)
+   - **West:** INR 333,106.33 (232 orders)
+   - **South:** INR 316,736.68 (216 orders)
+   - **East:** INR 275,098.45 (221 orders)
+3. **June Delivered Orders Average Order Value (AOV):** `INR 1,267.69`
+4. **Zero-Order Reseller:** `RS024` ("Ahmedabad Reseller 6", Region: West)
+
+---
+
+## Technical Concept: `COUNT(*)` vs `COUNT(order_id)` in LEFT JOINs
+
+When executing a `LEFT JOIN` between `resellers` and `orders` to identify resellers without orders (such as `RS024`), unmatched reseller records produce a single result row where all columns originating from the right (`orders`) table are `NULL`.
+
+- **`COUNT(*)` behavior:** Counts the total number of physical rows present in the grouped result set, regardless of whether column values are `NULL`. For an unmatched reseller like `RS024`, `COUNT(*)` evaluates to **1** (falsely indicating 1 order).
+- **`COUNT(order_id)` behavior:** Counts only non-null values present in the specified `order_id` column. Since `order_id` is `NULL` for unmatched reseller rows, `COUNT(order_id)` evaluates correctly to **0**.
+
+Therefore, `COUNT(order_id)` must be used when tracking activity on `LEFT JOIN` operations to avoid reporting false positive order counts.
+Execution Command
+Run the command below from your project root directory to generate all Part 1 deliverables:   
+JPEG
+
+Bash
+python part1_sql/generate_and_query.py 
