@@ -1,0 +1,70 @@
+I solved the capstone as a complete, runnable repository and verified the required acceptance scenarios.
+The project brief requires a single public GitHub repository containing Parts 1–4, with the Parts connected as SQL → Python guardrails → narrative → agent workflow. 
+What is included
+1.	Part 1 — SQL 
+o	Exact seeded dataset generator 
+o	SQLite database 
+o	All 5 required queries 
+o	Required CSV outputs 
+o	Zero-order LEFT JOIN/COUNT(*) demonstration 
+2.	Part 2 — Growth engine 
+o	mom_growth() 
+o	is_flagged() 
+o	validate_feed() 
+o	Required Given–When–Then tests 
+o	Corrupted-feed fixture 
+3.	Part 3 — Narrative 
+o	Reusable prompt pack 
+o	May Ethnic Wear +77.1% narrative 
+o	June Ethnic Wear -58.74% narrative 
+o	Chart-selection justification 
+o	Reseller alias masking 
+o	Positive and negative masking tests 
+4.	Part 4 — Agent 
+o	Agent specification 
+o	Ordered planner 
+o	Validation hard-stop 
+o	Top-3 notification cap 
+o	Suppression handling 
+o	Exact 8% escalation handling 
+o	Structured JSON output 
+o	Offline mock runner 
+5.	README 
+o	Complete setup and execution instructions 
+o	Part-to-Part workflow explanation 
+o	Acceptance checklist 
+The implementation reproduces the brief's required seeded outputs, including the 15 monthly category rows and the specified business results. 
+Verification completed
+•	Part 2 tests: passed 
+•	Part 3 masking tests: passed 
+•	May agent scenario: passed 
+o	Ethnic Wear 77.1% 
+o	Western Wear -23.6% 
+o	Kids Wear -23.48% 
+o	2 suppressed 
+•	June agent scenario: passed 
+o	Ethnic Wear -58.74% 
+o	Home & Kitchen 42.59% 
+o	Kids Wear 23.9% 
+o	Western Wear suppressed 
+•	Corrupted-feed scenario: passed 
+o	validation = invalid 
+o	hard stop 
+o	exactly 3 errors 
+o	no flagged/suppressed categories 
+The project specifically requires the Part 4 runner to use the Part 2 functions unmodified and to draft no more than the top three flagged categories. 
+Download the complete solution
+Download the complete Meesho Capstone Solution ZIP
+After extracting it, the main workflow is:
+python data/generate_dataset.py
+        ↓
+Part 1 SQL outputs
+        ↓
+Part 2 validation + MoM growth
+        ↓
+Part 3 controlled narrative
+        ↓
+Part 4 mock agent
+        ↓
+JSON draft held for human approval
+
